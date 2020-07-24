@@ -1,5 +1,21 @@
 from typing import List
+
+import subprocess
+import sys
+
+try:
+    import memory_profiler
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", 'memory-profiler'])
+finally:
+    import memory_profiler
+
+from memory_profiler import memory_usage
+import pytest
+import session2
 import time
+import os.path
+import re
 
 # Here in this code we will be leaking memory because we are creating cyclic reference. 
 # Find that we are indeed making cyclic references.
@@ -13,6 +29,9 @@ class Something(object):
         super().__init__()
         self.something_new = None
 
+    def __repr__(self):
+        return 'test String'
+
 
 class SomethingNew(object):
 
@@ -21,20 +40,25 @@ class SomethingNew(object):
         self.i = i
         self.something = something
 
+    def __repr__(self):
+        return 'New test String'
+
 
 def add_something(collection: List[Something], i: int):
     something = Something()
     something.something_new = SomethingNew(i, something)
     collection.append(something)
 
-def reserved_Function():
+def reserved_function():
     # to be used in future if required
     pass
 
 def clear_memory(collection: List[Something]):
     # you probably need to add some comment here
-
-    
+    # It will clear memory or remove unreference variables
+    # which helps to break cyclic reference
+    for something in collection:
+        something.something_new = None
     collection.clear()
 
 
@@ -43,7 +67,6 @@ def critical_function():
     for i in range(1, 1024 * 128):
         add_something(collection, i)
     clear_memory(collection)
-
 
 # Here we are suboptimally testing whether two strings are exactly same or not
 # After that we are trying to see if we have a particular character in that string or not
@@ -63,7 +86,13 @@ def compare_strings_old(n):
 
 # YOU NEED TO CHANGE THIS PROGRAM
 def compare_strings_new(n):
-    time.sleep(6) # remove this line, this is just to simulate your "slow" code
-
-
-
+    # time.sleep(6) # remove this line, this is just to simulate your "slow" code
+    a = sys.intern('a long string that is not intered' * 200)
+    b = sys.intern('a long string that is not intered' * 200)
+    for i in range(n):
+        if a is b:
+            pass
+    char_set = set(a)
+    for i in range(n):
+        if 'd' in char_set:
+            pass
